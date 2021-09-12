@@ -1,0 +1,270 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE,out.extra='trim={0 1cm 0 1cm}') 
+```
+### **Introduction**
+The project looks into the a data set over viewing certain beers and rating them by a criteria.
+```{r, message=F, warning=F}
+#install packages
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(data.table)
+library(corrplot)
+library(corrgram)
+library(forcats)
+```
+
+**Overview of the Data**
+
+The data set goes over beer that were reviewed by people based on characteristic.
+
+The data set has 13 variables/columns as follows:
+
+beer_ABV: alcohol by volume, is the standard measurement, used worldwide, to assess the strength of a particular beer
+
+beer_beerId: Id number that was given for the beer_name
+
+beer_brewerId: Id number that given for the beer_style
+
+beer_name: Name of the beer
+
+beer_style: Style of the beer
+
+review_appearance: How the look of the beer looked to reviewer overall. Scored by 1 out of 5.
+
+review_palette: The range of taste of the beer.Scored by 1 out of 5.
+
+review_overall: The overall review of the beer. Taken the mean of all the other reviews. Scored by 1 out of 5.
+
+review_taste : How the beer tasted. Scored by 1 out of 5.
+
+review_profileName:  The profile name of the reviewer.
+
+review_aroma: The scent of the beer. Scored by 1 out of 5.
+
+review_text: The comment the reviewer left.
+
+review_time: When the reviwer made the review.
+```{r}
+# puts the data set into variable BP
+BP <- read.csv("BeerProject.csv") 
+# shows the first 5 rows of the data set
+head(BP) 
+```
+
+```{r}
+# Shows the variable and how many rows the data set has
+str(BP)
+```
+
+```{r}
+# Shows the overall summary of the data set
+summary(BP) 
+```
+
+### **Cleaning the data set** 
+
+The cleaning process involved checking to see if there were any NA's or blanks in the column. Removing the following columns;review_text, review_time and review_profileName, as I felt those columns would not affect the results of the findings of the this project. Making a function to get the mean review score of the beers as beers were reviewed more then once.
+```{r}
+colSums(is.na(BP))  # Shows any columns that contains NA's or Blanks
+```
+
+```{r}
+# functions gets the overall average review score of the beers as beers were reviewed more then once
+getmode <- function(v) { 
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v,uniqv)))]
+}
+
+beer_ABV_mode<-getmode(BP$beer_ABV)
+BP$beer_ABV[which(is.na(BP$beer_ABV))] <- beer_ABV_mode
+
+colSums(is.na(BP))
+```
+
+```{r}
+# removes columns
+BP2 <- BP %>% subset(select=-c(review_text,review_time,review_profileName)) 
+```
+
+```{r}
+# sees the first 5 rows of the edited data set
+head(BP2) 
+```
+
+### **Visualizations of the characteristics that were reviewed for the beers.**
+
+The following code chucks shows aggregation and visualizations of characteristics of the beers that were scored. The following visualization were are table that shows the count or the average score of the beers. A point chart or a bar chart to visualize the results from the table. A histogram to shows the frequency of the score, 
+```{r}
+# counts the different types of beers.Outputs only the first 5 rows
+type_df <- BP2 %>% group_by(beer_style) %>% summarize(counts=n()) 
+head(type_df)
+```
+
+```{r}
+# Charts the counts of the type of beers in a bar chart
+type_df %>% top_n(n=20) %>% mutate(beer_style = fct_reorder(beer_style,desc(counts))) %>% 
+ggplot(aes(x=beer_style,y=counts)) + 
+geom_bar(stat = "identity")+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)) 
+```
+
+```{r}
+# counts the names of the beers that were reviewed 
+name_df <- BP2 %>% group_by(beer_name) %>% summarize(counts=n())
+name_df
+```
+
+```{r}
+# Charts the counts of the name of the beers in a bar chart
+name_df %>% top_n(n=20) %>% mutate(beer_name = fct_reorder(beer_name,desc(counts))) %>% 
+ggplot(aes(x=beer_name,y=counts)) + 
+geom_bar(stat = "identity")+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+# shows the average alcohol content of the beers. Output only shows the first top 5 of the data set
+beer_ABV_df <- BP2 %>% group_by(beer_style) %>%  summarize(mean(beer_ABV)) 
+names(beer_ABV_df)[2] <- "Average_Alcohol_content_by_volume"
+beer_ABV_df <- beer_ABV_df %>% arrange(desc(Average_Alcohol_content_by_volume))
+head(beer_ABV_df)
+```
+
+```{r}
+# charts the results of the table in a bar chart. Outputs only the top 20
+beer_ABV_df %>% top_n(n=20) %>% 
+mutate(beer_style = fct_reorder(beer_style, Average_Alcohol_content_by_volume, .desc = TRUE)) %>% ggplot(aes(beer_style,Average_Alcohol_content_by_volume)) +
+geom_bar(stat = "identity")+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+# Shows the overall rating of the beers. Outputs only the first 5 rows of the data set
+beer_name_rating <- BP2 %>% group_by(beer_name) %>% summarize(mean(review_overall)) 
+
+names(beer_name_rating)[2] <- "Average_Review_Overall"
+
+beer_name_rating <- beer_name_rating %>% arrange(desc(Average_Review_Overall))
+beer_name_rating
+```
+
+```{r}
+# shows the frequency of each review score 
+beer_name_rating %>% ggplot(aes(x=Average_Review_Overall)) + 
+geom_histogram(color="black", fill="white",binwidth=1)
+```
+
+```{r}
+# Shows the average appearance score by beer style. Outputs only the first 5 rows
+review_appearance_df <- BP2 %>% group_by(beer_style
+) %>%  summarize(mean(review_appearance)) 
+names(review_appearance_df)[2] <- "Avg_review_appearance"
+review_appearance_df<- review_appearance_df %>% arrange(desc(Avg_review_appearance))
+head(review_appearance_df)
+```
+
+```{r}
+# Charts the results from the table in a point chart. Only output the top 20.
+review_appearance_df %>% top_n(n=20)%>%
+mutate(beer_style = fct_reorder(beer_style, Avg_review_appearance, .desc = TRUE)) %>% 
+ggplot(aes(beer_style,Avg_review_appearance))+geom_point(stat = "identity")+
+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+
+```{r}
+# shows the frequency of each review score 
+review_appearance_df %>% ggplot(aes(x=Avg_review_appearance)) + 
+geom_histogram(color="black", fill="white",binwidth=1)
+```
+
+```{r}
+# Shows the average review palette by beer style. Outputs only the first 5 rows
+review_palette_df <- BP2 %>% group_by(beer_style) %>% summarize(mean(review_palette))
+names(review_palette_df)[2] <- "Avg_review_palette"
+review_palette_df <- review_palette_df %>% arrange(desc(Avg_review_palette))
+head(review_palette_df)
+```
+
+```{r}
+# Plots the results from the table in a graph. Only outputs the top 20
+review_palette_df %>% top_n(n=20) %>% 
+mutate(beer_style =  fct_reorder(beer_style, Avg_review_palette, .desc = TRUE)) %>% 
+ggplot(aes(beer_style,Avg_review_palette)) + geom_point(stat ="identity" )+
+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+# shows the frequency of each review score
+review_palette_df %>% ggplot(aes(x=Avg_review_palette)) + 
+geom_histogram(color="black", fill="white",binwidth=1)
+```
+
+
+```{r}
+# Shows the average review taste by beer style. Outputs only the first 5 rows
+review_taste_df <- BP2 %>% group_by(beer_style) %>% summarize(mean(review_taste))
+names(review_taste_df)[2] <- "Avg_review_taste"
+review_taste_df <- review_taste_df %>% arrange(desc(Avg_review_taste))
+head(review_taste_df)
+```
+
+```{r}
+# Plots the results from the table in a graph. Only outputs the top 20
+review_taste_df %>% top_n(n=20) %>% 
+mutate(beer_style =  fct_reorder(beer_style, Avg_review_taste, .desc = TRUE)) %>% 
+ggplot(aes(beer_style,Avg_review_taste)) + geom_point(stat ="identity" )+
+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+
+```{r}
+# shows the frequency of each review score 
+review_taste_df %>% ggplot(aes(x=Avg_review_taste)) + 
+geom_histogram(color="black", fill="white",binwidth=1)
+```
+
+```{r}
+# Shows the average aroma taste by beer style. Outputs only the first 5 rows
+review_aroma_df <- BP2 %>% group_by(beer_style) %>% summarize(mean(review_aroma))
+names(review_aroma_df)[2] <-"Avg_review_aroma"
+review_aroma_df <- review_aroma_df %>% arrange(desc(Avg_review_aroma))
+head(review_aroma_df)
+```
+
+```{r}
+# Plots the results from the table in a graph. Only outputs the top 20
+review_aroma_df %>% top_n(n=20) %>% 
+mutate(beer_style =  fct_reorder(beer_style,Avg_review_aroma, .desc = TRUE)) %>% 
+ggplot(aes(beer_style,Avg_review_aroma)) + geom_point(stat ="identity" )+
+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+```
+
+```{r}
+# shows the frequency of each review score 
+review_aroma_df %>% ggplot(aes(x=Avg_review_aroma)) + 
+geom_histogram(color="black", fill="white",binwidth=1)
+```
+
+
+### **Correlation of the variables**
+The following code chunks were used to get the correlation of the variables that were reviewed for the beers.
+First I made a code that would only get the columns that had the scores regarding the review and put them in a correlation table showing the correlation the variables with each other.  
+```{r}
+cordata = BP2[,c(6,7,8,9,10)]
+corr <- cor(cordata)
+corr
+```
+
+### **Correlation of the variables**
+Here I made correlation plot of the variables to visualize what the table had.
+```{r}
+corrplot(corr,method = "circle")
+```
+
+## **Conclusion**
+With the data that has been collected we can see the highest correlation with the overall review was aroma, taste, and palette. A note to take from the analyzing the data set is that NOT all beers were revewived by the same amount which could have affected the correlation given here.
